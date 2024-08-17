@@ -5,6 +5,7 @@ pub mod config;
 
 pub use amqprs;
 use amqprs::connection::OpenConnectionArguments;
+use config::RecyclingMethod;
 pub use deadpool::managed::reexports::*;
 use deadpool::managed::{RecycleError, RecycleResult};
 use deadpool::{async_trait, managed};
@@ -33,14 +34,18 @@ pub type Connection = Object;
 /// [`Manager`] for creating and recycling [`amqprs`] connections.
 pub struct Manager {
     con_args: OpenConnectionArguments,
+    recycling_method: RecyclingMethod,
 }
 
 impl Manager {
     /// Creates a new [`Manager`] from the given arguments.
     #[must_use]
     #[inline]
-    pub const fn new(con_args: OpenConnectionArguments) -> Self {
-        Self { con_args }
+    pub const fn new(con_args: OpenConnectionArguments, recycling_method: RecyclingMethod) -> Self {
+        Self {
+            con_args,
+            recycling_method,
+        }
     }
 }
 
@@ -72,6 +77,11 @@ impl managed::Manager for Manager {
     /// Returns [`Manager::Error`] if the instance couldn't be recycled.
     async fn recycle(&self, conn: &mut Self::Type, _: &Metrics) -> RecycleResult<Self::Error> {
         if conn.is_open() {
+            if self.recycling_method == RecyclingMethod::Verified
+                && conn.open_channel(None).await.is_err()
+            {
+                return Err(RecycleError::StaticMessage("Connection closed."));
+            }
             Ok(())
         } else {
             Err(RecycleError::StaticMessage("Connection closed."))

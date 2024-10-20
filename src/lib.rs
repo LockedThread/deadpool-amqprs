@@ -75,15 +75,16 @@ impl managed::Manager for Manager {
     ///
     /// Returns [`Manager::Error`] if the instance couldn't be recycled.
     async fn recycle(&self, conn: &mut Self::Type, _: &Metrics) -> RecycleResult<Self::Error> {
-        if conn.is_open() {
-            if self.recycling_method == RecyclingMethod::Verified
-                && conn.open_channel(None).await.is_err()
-            {
-                return Err(RecycleError::message("Connection closed."));
-            }
-            Ok(())
-        } else {
-            Err(RecycleError::message("Connection closed."))
+        if !conn.is_open() {
+            return Err(RecycleError::message("Connection closed."));
         }
+
+        if self.recycling_method == RecyclingMethod::Verified
+            && conn.open_channel(None).await.is_err()
+        {
+            return Err(RecycleError::message("Connection closed."));
+        }
+
+        Ok(())
     }
 }

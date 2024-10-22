@@ -3,7 +3,7 @@
 
 pub mod config;
 
-pub use amqprs;
+//use amqprs;
 use amqprs::connection::OpenConnectionArguments;
 use config::RecyclingMethod;
 use deadpool::managed;
